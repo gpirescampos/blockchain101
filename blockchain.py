@@ -1,19 +1,37 @@
 import hashlib
 import json
+import requests
+import argparse
+
 from textwrap import dedent
 from time import time
 from uuid import uuid4
-import argparse
 from flask import Flask, jsonify, request
+from urllib.parse import urlparse
+
+parser = argparse.ArgumentParser(description='Node port')
+parser.add_argument('port', metavar='P', type=int, help='the port value for the new node')
+
+args = parser.parse_args()
 
 class Blockchain(object):
     def __init__(self):
         self.current_transactions = []
         self.chain = []
-
+        self.nodes = set()
         # Create the genesis block
         self.new_block(previous_hash=1, proof=100)
-        
+
+    def register_node(self, address):
+        """
+        Add a new node to the list of nodes
+        :param address: <str> Address of node. Eg. 'http://192.168.0.5:5000'
+        :return: None
+        """
+
+        parsed_url = urlparse(address)
+        self.nodes.add(parsed_url.netloc)
+
     def new_block(self, proof, previous_hash=None):
         """
         Create a new Block in the Blockchain
@@ -139,7 +157,9 @@ class Blockchain(object):
         max_length = len(self.chain)
 
         # Grab and verify the chains from all the nodes in our network
+        print(len(neighbours))
         for node in neighbours:
+            print(node)
             response = requests.get(f'http://{node}/chain')
 
             if response.status_code == 200:
@@ -150,7 +170,7 @@ class Blockchain(object):
                 if length > max_length and self.valid_chain(chain):
                     max_length = length
                     new_chain = chain
-
+                    
         # Replace our chain if we discovered a new, valid chain longer than ours
         if new_chain:
             self.chain = new_chain
@@ -201,7 +221,7 @@ def new_transaction():
 
     # Check that the required fields are in the POST'ed data
     required = ['sender', 'recipient', 'amount']
-    print(request)
+
     if not all(k in values for k in required):
         return 'Missing values', 400
 
@@ -255,4 +275,4 @@ def consensus():
     return jsonify(response), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=args.port)
