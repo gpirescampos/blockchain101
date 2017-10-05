@@ -1,7 +1,14 @@
+import hashlib
+import json
+from time import time
+
 class Blockchain(object):
     def __init__(self):
-        self.chain = []
         self.current_transactions = []
+        self.chain = []
+
+        # Create the genesis block
+        self.new_block(previous_hash=1, proof=100)
         
     def new_block(self):
         # Creates a new Block and adds it to the chain
