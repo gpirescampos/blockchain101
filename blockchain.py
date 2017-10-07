@@ -3,6 +3,8 @@ import json
 import requests
 import argparse
 
+from Crypto.PublicKey import RSA
+from Crypto import Random
 from textwrap import dedent
 from time import time
 from uuid import uuid4
@@ -21,6 +23,13 @@ class Blockchain(object):
         self.nodes = set()
         # Create the genesis block
         self.new_block(previous_hash=1, proof=100)
+
+        # Generate a globally unique address for this node
+        self.node_identifier = str(uuid4()).replace('-', '')
+        
+        # Generate a key pair for this node
+        random_generator = Random.new().read
+        self.node_key = RSA.generate(1024, random_generator)
 
     def register_node(self, address):
         """
@@ -170,7 +179,7 @@ class Blockchain(object):
                 if length > max_length and self.valid_chain(chain):
                     max_length = length
                     new_chain = chain
-                    
+
         # Replace our chain if we discovered a new, valid chain longer than ours
         if new_chain:
             self.chain = new_chain
@@ -181,12 +190,8 @@ class Blockchain(object):
 # Instantiate our Node
 app = Flask(__name__)
 
-# Generate a globally unique address for this node
-node_identifier = str(uuid4()).replace('-', '')
-
 # Instantiate the Blockchain
 blockchain = Blockchain()
-
 
 @app.route('/mine', methods=['GET'])
 def mine():
@@ -272,6 +277,18 @@ def consensus():
             'chain': blockchain.chain
         }
 
+    return jsonify(response), 200
+
+@app.route('/node/coinbase', methods=['GET'])
+def coinbase():
+    response = blockchain.node_key
+    return jsonify(response), 200
+
+@app.route('/keys/new', methods=['GET'])
+def newKey():
+    random_generator = Random.new().read
+    key = RSA.generate(1024, random_generator)
+    response = key
     return jsonify(response), 200
 
 if __name__ == '__main__':
